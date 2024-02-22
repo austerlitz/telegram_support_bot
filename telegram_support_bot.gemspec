@@ -19,7 +19,7 @@ the ability to reply directly from the secret chat to users, and customizable re
 for common queries. This gem simplifies the process of setting up a robust support channel on one of
 the most popular messaging platforms, making it an ideal solution for businesses looking to improve
 their customer service experience.'
-  spec.homepage = 'https://github.com/austerlitz/telegram-support-bot'
+  spec.homepage = 'https://github.com/austerlitz/telegram_support_bot'
   spec.license = 'MIT'
   # spec.required_ruby_version = '>= 2.6.0'
 
