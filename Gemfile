@@ -11,6 +11,7 @@ group :development, :test do
   gem 'pry'
   gem 'amazing_print'
   gem 'telegram-bot'
+  gem 'telegram-bot-types'
   # gem 'telegram-bot-ruby'
 end
 

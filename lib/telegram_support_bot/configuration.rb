@@ -2,7 +2,7 @@
 
 module TelegramSupportBot
   class Configuration
-    attr_accessor :adapter, :adapter_options
+    attr_accessor :adapter, :adapter_options, :support_chat_id, :welcome_message
 
     def initialize
       @adapter         = :telegram_bot # Default adapter

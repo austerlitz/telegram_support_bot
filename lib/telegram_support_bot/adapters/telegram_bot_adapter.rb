@@ -14,7 +14,11 @@ module TelegramSupportBot
       end
 
       def forward_message(from_chat_id:, chat_id:, message_id:)
-        @client.forward_message(chat_id: @options[:secret_chat_id], from_chat_id: from_chat_id, message_id: message_id)
+        @client.forward_message(
+          chat_id: chat_id,
+          from_chat_id: from_chat_id,
+          message_id: message_id
+        )
       end
     end
   end

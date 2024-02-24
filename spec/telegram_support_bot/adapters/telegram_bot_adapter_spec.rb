@@ -4,7 +4,7 @@ require 'telegram/bot'
 
 RSpec.describe TelegramSupportBot::Adapters::TelegramBotAdapter, :telegram_bot do
   let(:chat_id) { '123456' }
-  let(:adapter) { described_class.new(token: 'fake_token', secret_chat_id: chat_id) }
+  let(:adapter) { described_class.new(token: 'fake_token', support_chat_id: chat_id) }
   let(:text) { 'Hello, world!' }
   let(:message_id) { '123' }
   let(:telegram_mock) { instance_double(Telegram::Bot::Client) }
