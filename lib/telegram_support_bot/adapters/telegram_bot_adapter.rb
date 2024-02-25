@@ -29,6 +29,10 @@ module TelegramSupportBot
       def send_audio(chat_id:, audio:, **options)
         @bot.send_audio(chat_id: chat_id, audio: audio, **options)
       end
+      # Handles sending audio messages
+      def send_voice(chat_id:, voice:, **options)
+        @bot.send_voice(chat_id: chat_id, voice: voice, **options)
+      end
 
       # Handles sending sticker messages
       def send_sticker(chat_id:, sticker:, **options)
@@ -48,6 +52,8 @@ module TelegramSupportBot
           send_document(chat_id: chat_id, document: media, **options)
         when :audio
           send_audio(chat_id: chat_id, audio: media, **options)
+        when :voice
+          send_voice(chat_id: chat_id, voice: media, **options)
         when :sticker
           send_sticker(chat_id: chat_id, sticker: media, **options)
         else

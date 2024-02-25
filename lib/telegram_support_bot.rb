@@ -105,16 +105,18 @@ module TelegramSupportBot
         type, media, options = extract_media_info(message)
         options[:caption]    = caption if caption
 
-        # Use the generalized send_media method
-        adapter.send_media(chat_id: original_user_id, type: type, media: media, **options)
-      else
-        # Handle other types of messages or default case
-        warning_message = "Warning: The message type received from the user is not supported by the bot. Please assist the user directly."
-        adapter.send_message(
-          chat_id:             configuration.support_chat_id,
-          text:                warning_message,
-          reply_to_message_id: message['message_id']
-        )
+        if 'unknown' == type
+          # Handle other types of messages or default case
+          warning_message = "Warning: The message type received from the user is not supported by the bot. Please assist the user directly."
+          adapter.send_message(
+            chat_id:             configuration.support_chat_id,
+            text:                warning_message,
+            reply_to_message_id: message['message_id']
+          )
+        else
+          # Use the generalized send_media method
+          adapter.send_media(chat_id: original_user_id, type: type, media: media, **options)
+        end
       end
     end
 
@@ -134,10 +136,12 @@ module TelegramSupportBot
           performer: message['audio'].fetch('performer', ''),
           title:     message['audio'].fetch('title', '')
         }]
+      elsif message.key?('voice')
+        [:voice, message['voice']['file_id'], {}]
       elsif message.key?('sticker')
         [:sticker, message['sticker']['file_id'], {}]
       else
-        [:text, "This type of message is not supported.", {}]
+        [:unknown, "This type of message is not supported.", {}]
       end
     end
 
