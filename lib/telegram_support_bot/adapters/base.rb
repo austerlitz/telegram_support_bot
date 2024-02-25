@@ -2,7 +2,7 @@
 
 module TelegramSupportBot
   module Adapters
-    class BaseAdapter
+    class Base
       attr_reader :bot
 
       def initialize(**options)
@@ -18,8 +18,12 @@ module TelegramSupportBot
         # Implementation using the telegram-bot gem
       end
 
+      def send_media(chat_id:, type:, media:, **options)
+        # send photos, videos, documents
+      end
+
       def forward_message(from_chat_id:, chat_id:, message_id:)
-        # Implementation using the telegram-bot gem
+        # forward messages to the support chat
       end
 
       def on_message(&block)

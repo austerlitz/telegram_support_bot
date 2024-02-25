@@ -2,8 +2,8 @@
 module TelegramSupportBot
   module AdapterFactory
     ADAPTERS = {
-      telegram_bot: 'TelegramSupportBot::Adapters::TelegramBotAdapter',
-      telegram_bot_ruby: 'TelegramSupportBot::Adapters::TelegramBotRubyAdapter'
+      telegram_bot: 'TelegramSupportBot::Adapters::TelegramBot',
+      telegram_bot_ruby: 'TelegramSupportBot::Adapters::TelegramBotRuby'
       # Add more predefined adapters here
     }.freeze
 

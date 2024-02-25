@@ -2,7 +2,7 @@
 
 module TelegramSupportBot
   module Adapters
-    class TelegramBotAdapter < BaseAdapter
+    class TelegramBot < Base
 
       def initialize(**options)
         super
@@ -48,6 +48,8 @@ module TelegramSupportBot
           send_photo(chat_id: chat_id, photo: media, **options)
         when :video
           send_video(chat_id: chat_id, video: media, **options)
+        when :video_note
+          send_video_note(chat_id: chat_id, video_note: media, **options)
         when :document
           send_document(chat_id: chat_id, document: media, **options)
         when :audio

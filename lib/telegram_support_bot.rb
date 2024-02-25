@@ -2,10 +2,11 @@
 
 require_relative "telegram_support_bot/version"
 require_relative 'telegram_support_bot/configuration'
+require_relative 'telegram_support_bot/auto_away_scheduler'
 require_relative 'telegram_support_bot/adapter_factory'
-require_relative 'telegram_support_bot/adapters/base_adapter'
-require_relative 'telegram_support_bot/adapters/telegram_bot_adapter'
-require_relative 'telegram_support_bot/adapters/telegram_bot_ruby_adapter'
+require_relative 'telegram_support_bot/adapters/base'
+require_relative 'telegram_support_bot/adapters/telegram_bot'
+require_relative 'telegram_support_bot/adapters/telegram_bot_ruby'
 
 module TelegramSupportBot
   class << self
@@ -22,6 +23,10 @@ module TelegramSupportBot
     # This method initializes the adapter when it's first called.
     def adapter
       @adapter ||= AdapterFactory.build(configuration.adapter, configuration.adapter_options)
+    end
+
+    def scheduler
+      @scheduler ||= AutoAwayScheduler.new(adapter, configuration)
     end
 
     def process_update(update)
@@ -105,17 +110,18 @@ module TelegramSupportBot
         type, media, options = extract_media_info(message)
         options[:caption]    = caption if caption
 
-        if 'unknown' == type
+        message_id = message['message_id']
+        if :unknown == type
           # Handle other types of messages or default case
           warning_message = "Warning: The message type received from the user is not supported by the bot. Please assist the user directly."
           adapter.send_message(
             chat_id:             configuration.support_chat_id,
             text:                warning_message,
-            reply_to_message_id: message['message_id']
+            reply_to_message_id: message_id
           )
         else
-          # Use the generalized send_media method
           adapter.send_media(chat_id: original_user_id, type: type, media: media, **options)
+          # scheduler.cancel_scheduled_task(message_id)
         end
       end
     end
@@ -128,6 +134,8 @@ module TelegramSupportBot
         [:photo, photo['file_id'], {}]
       elsif message.key?('video')
         [:video, message['video']['file_id'], {}]
+      elsif message.key?('video_note')
+        [:video, message['video_note']['file_id'], {}]
       elsif message.key?('document')
         [:document, message['document']['file_id'], {}]
       elsif message.key?('audio')
@@ -146,10 +154,12 @@ module TelegramSupportBot
     end
 
     def forward_message_to_support_chat(message)
+      message_id = message['message_id']
       adapter.forward_message(
         from_chat_id: message_chat_id,
-        message_id:   message['message_id'],
+        message_id:   message_id,
         chat_id:      configuration.support_chat_id)
+      # scheduler.schedule_auto_away_message(message_id, message_chat_id)
     end
 
     def handle_my_chat_member_update(update)

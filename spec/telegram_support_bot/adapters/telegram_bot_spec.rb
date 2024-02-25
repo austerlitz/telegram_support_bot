@@ -2,7 +2,7 @@
 require 'spec_helper'
 require 'telegram/bot'
 
-RSpec.describe TelegramSupportBot::Adapters::TelegramBotAdapter, :telegram_bot do
+RSpec.describe TelegramSupportBot::Adapters::TelegramBot, :telegram_bot do
   let(:chat_id) { '123456' }
   let(:adapter) { described_class.new(token: 'fake_token', support_chat_id: chat_id) }
   let(:text) { 'Hello, world!' }

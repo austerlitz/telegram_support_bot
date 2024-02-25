@@ -2,7 +2,7 @@
 
 module TelegramSupportBot
   module Adapters
-    class TelegramBotRubyAdapter
+    class TelegramBotRuby
     end
   end
 end

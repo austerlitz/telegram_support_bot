@@ -3,7 +3,7 @@ require 'spec_helper'
 require 'telegram/bot'
 
 
-RSpec.describe TelegramSupportBot::Adapters::TelegramBotRubyAdapter, :telegram_bot_ruby do
+RSpec.describe TelegramSupportBot::Adapters::TelegramBotRuby, :telegram_bot_ruby do
   describe '#send_message' do
     it 'calls the Telegram Bot API to send a message' do
       client = instance_double('Telegram::Bot::Client')
