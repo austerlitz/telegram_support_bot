@@ -3,6 +3,8 @@
 module TelegramSupportBot
   module Adapters
     class BaseAdapter
+      attr_reader :bot
+
       def initialize(**options)
         @options = options
         setup(options)
