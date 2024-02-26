@@ -115,6 +115,23 @@ end
 Implement custom adapters by inheriting from `TelegramSupportBot::Adapter::Base` and defining
 message sending and forwarding methods.
 
+## Handling User Privacy Settings for Message Forwarding
+
+Due to Telegram's privacy settings, users may have restricted the ability for bots to forward their messages with identifiable information. This restriction impacts the `forward_from` key, necessary for the bot to recognize and reply to users directly. To ensure seamless communication and support, we recommend including instructions in your bot's welcome message, asking users to allow message forwarding from your bot. Here's an example of how you can phrase this request:
+```
+Please mind, that your privacy settings might prevent the bot from sending you the reply from the support team. Please consider adding this bot to your allow-list for forwarding. Here’s how you can do it:
+  
+1. Go to Settings in your Telegram app.
+2. Tap on 'Privacy and Security'.
+3. Scroll to 'Forwarded Messages'.
+4. Add this bot to the list of exceptions by selecting 'Always Allow' for it.
+
+This will allow the bot to send you back replies from the support team.
+
+```
+
+Including such instructions can help in reducing the friction in user support interactions and ensure that your support team can effectively communicate with users through the bot.
+
 
 ## Development
 
