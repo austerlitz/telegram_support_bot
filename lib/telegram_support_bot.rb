@@ -92,8 +92,10 @@ module TelegramSupportBot
         send_welcome_message(chat_id: message_chat_id)
       else
         # Respond to unknown commands
-        unknown_command_response = "I don't know the command #{command}. Please use /start to begin or check the available commands."
-        adapter.send_message(chat_id: message_chat_id, text: unknown_command_response)
+        unless configuration.ignore_unknown_commands
+          unknown_command_response = "I don't know the command #{command}. Please use /start to begin or check the available commands."
+          adapter.send_message(chat_id: message_chat_id, text: unknown_command_response)
+        end
       end
     end
 
