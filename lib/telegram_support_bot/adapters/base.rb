@@ -3,6 +3,7 @@
 module TelegramSupportBot
   module Adapters
     class Base
+
       attr_reader :bot
 
       def initialize(**options)
@@ -19,7 +20,15 @@ module TelegramSupportBot
       end
 
       def send_media(chat_id:, type:, media:, **options)
-        # send photos, videos, documents
+        method = "send_#{type}"
+        args = { chat_id: chat_id, **options }
+        args[type] = media
+
+        if respond_to?(method, true)
+          send(method, **args)
+        else
+          raise ArgumentError, "Unsupported media type: #{type}"
+        end
       end
 
       def forward_message(from_chat_id:, chat_id:, message_id:)
