@@ -48,7 +48,6 @@ module TelegramSupportBot
 
     def process_message(message)
       @message_chat_id = message['chat']['id']
-      ap message
 
       if message_chat_id == configuration.support_chat_id
         process_support_chat_message(message)
