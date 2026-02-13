@@ -4,6 +4,7 @@ module TelegramSupportBot
   class Configuration
     attr_accessor :adapter, :adapter_options, :support_chat_id, :welcome_message,
                   :auto_away_message, :auto_away_interval, :ignore_unknown_commands,
+                  :ignore_non_command_messages, :non_command_message_response,
                   :request_contact_on_start, :require_contact_for_support, :contact_request_message,
                   :contact_received_message, :contact_invalid_message, :on_contact_received,
                   :state_store, :state_store_options, :mapping_ttl_seconds,
@@ -14,6 +15,8 @@ module TelegramSupportBot
       @adapter_options         = {}
       @welcome_message         = 'Welcome! How can we help you?'
       @ignore_unknown_commands = true
+      @ignore_non_command_messages = true
+      @non_command_message_response = 'I received your message, but I only respond to commands. Please use /start to get started.'
       @auto_away_interval      = 10 # seconds
       @auto_away_message       = 'We are sorry, all operators are busy at the moment. Please wait'
       @request_contact_on_start = false

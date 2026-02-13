@@ -43,6 +43,11 @@ TelegramSupportBot.configure do |config|
   config.adapter_options = { token: 'YOUR_TELEGRAM_BOT_TOKEN' }
   config.support_chat_id = 'YOUR_SUPPORT_CHAT_ID'
   config.welcome_message = 'Hi! How can we help you?'
+  # Support-chat noise control:
+  # true (default)  -> ignore non-command messages in support chat
+  # false           -> reply with non_command_message_response
+  config.ignore_non_command_messages = true
+  config.non_command_message_response = 'I only respond to commands. Please use /start.'
   # Optional: ask users to share their phone once for account lookup.
   config.request_contact_on_start = true
   # Optional: block forwarding until contact is shared.

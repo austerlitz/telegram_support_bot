@@ -27,6 +27,16 @@ RSpec.describe TelegramSupportBot::Configuration do
     expect(TelegramSupportBot.configuration.contact_invalid_message).to eq('Invalid')
   end
 
+  it 'supports non-command support chat behavior settings' do
+    TelegramSupportBot.configure do |config|
+      config.ignore_non_command_messages = false
+      config.non_command_message_response = 'Team-only mode enabled'
+    end
+
+    expect(TelegramSupportBot.configuration.ignore_non_command_messages).to eq(false)
+    expect(TelegramSupportBot.configuration.non_command_message_response).to eq('Team-only mode enabled')
+  end
+
   it 'supports configuring redis state backend' do
     TelegramSupportBot.configure do |config|
       config.state_store = :redis

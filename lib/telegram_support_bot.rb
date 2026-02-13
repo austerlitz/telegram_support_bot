@@ -130,17 +130,14 @@ module TelegramSupportBot
       elsif message['text']&.start_with?('/')
         process_command(message, chat_id: chat_id)
       else
-        # For non-command messages, you might want to handle differently or just ignore
-        # For now, let's just acknowledge the message
-        acknowledge_non_command_message(message, chat_id: chat_id)
+        acknowledge_non_command_message(message, chat_id: chat_id) unless configuration.ignore_non_command_messages
       end
     end
 
     def acknowledge_non_command_message(message, chat_id:)
-      reply_message = 'I received your message, but I only respond to commands. Please use /start to get started.'
       adapter.send_message(
         chat_id:             chat_id,
-        text:                reply_message,
+        text:                configuration.non_command_message_response,
         reply_to_message_id: message['message_id']
       )
     end
