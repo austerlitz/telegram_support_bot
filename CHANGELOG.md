@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.08] - 2026-02-13
+
+### Added
+- Optional one-time contact sharing flow for user identification:
+  `request_contact_on_start`, `require_contact_for_support`, custom contact messages, and
+  `on_contact_received` callback.
+- In-memory user profile storage and lookup via `TelegramSupportBot.user_profile(chat_id)`.
+- Configurable state-store backend with Redis support for multi-pod deployments
+  (`state_store`, `state_store_options`, and state TTL settings).
+
+### Changed
+- Support reply routing now uses internal message mapping first, with `forward_from` as fallback.
+  This removes the dependency on user forwarding privacy settings for normal reply flows.
+- Message processing no longer relies on shared `@message_chat_id`, reducing thread-safety risks.
+
 ## [0.1.07] - 2026-02-13
 
 ### Added

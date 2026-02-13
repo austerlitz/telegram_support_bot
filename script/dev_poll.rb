@@ -3,6 +3,7 @@
 
 require 'telegram_support_bot'
 require 'telegram/bot'
+require 'json'
 
 token = ENV.fetch('TELEGRAM_BOT_TOKEN')
 support_chat_id = Integer(ENV.fetch('SUPPORT_CHAT_ID'))
@@ -16,7 +17,13 @@ TelegramSupportBot.configure do |config|
   config.adapter = adapter.to_sym
   config.adapter_options = adapter_options
   config.support_chat_id = support_chat_id
+  config.request_contact_on_start = true
+  # config.require_contact_for_support = true
   config.welcome_message = 'Hi! How can we help you?'
+  config.on_contact_received = lambda do |profile|
+    puts '[TSB CONTACT] Contact received profile:'
+    puts JSON.pretty_generate(profile)
+  end
 end
 
 client = Telegram::Bot::Client.new(token)

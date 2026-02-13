@@ -4,6 +4,7 @@ require_relative "telegram_support_bot/version"
 require_relative 'telegram_support_bot/configuration'
 require_relative 'telegram_support_bot/auto_away_scheduler'
 require_relative 'telegram_support_bot/adapter_factory'
+require_relative 'telegram_support_bot/state_store'
 require_relative 'telegram_support_bot/adapters/base'
 require_relative 'telegram_support_bot/adapters/telegram_bot'
 require_relative 'telegram_support_bot/adapters/telegram_bot_ruby'
@@ -11,7 +12,6 @@ require_relative 'telegram_support_bot/adapters/telegram_bot_ruby'
 module TelegramSupportBot
   class << self
     attr_accessor :configuration
-    attr_reader :message_chat_id
 
     # Provides a method to configure the gem.
     def configure
@@ -25,16 +25,28 @@ module TelegramSupportBot
       @adapter ||= AdapterFactory.build(configuration.adapter, configuration.adapter_options)
     end
 
+    def state_store
+      @state_store ||= StateStore.build(configuration)
+    end
+
     def message_map
-      @message_map ||= {}
+      state_store.message_map
     end
 
     def reverse_message_map
-      @reverse_message_map ||= {}
+      state_store.reverse_message_map
     end
 
     def reaction_count_state
-      @reaction_count_state ||= {}
+      state_store.reaction_count_state
+    end
+
+    def user_profiles
+      state_store.user_profiles
+    end
+
+    def user_profile(chat_id)
+      user_profiles[chat_id] || user_profiles[chat_id.to_s] || user_profiles[chat_id.to_i]
     end
 
     def scheduler
@@ -63,94 +75,129 @@ module TelegramSupportBot
     private
 
     def process_message(message)
-      @message_chat_id = message['chat']['id']
+      chat_id = message.dig('chat', 'id')
 
-      if message_chat_id == configuration.support_chat_id
-        process_support_chat_message(message)
+      if same_chat_id?(chat_id, configuration.support_chat_id)
+        process_support_chat_message(message, chat_id: chat_id)
       else
-        # Message is from an individual user, forward it to the support chat
-        if message['text'] == '/start'
-          # Send welcome message to the user
-          adapter.send_message(chat_id: message_chat_id, text: configuration.welcome_message)
-        else
-          forward_message_to_support_chat(message)
-        end
+        process_user_chat_message(message, chat_id: chat_id)
       end
     end
 
-    def process_support_chat_message(message)
+    def process_user_chat_message(message, chat_id:)
+      if message.key?('contact')
+        process_user_contact(message, chat_id: chat_id)
+        return
+      end
+
+      if message['text'] == '/start'
+        adapter.send_message(chat_id: chat_id, text: configuration.welcome_message)
+        request_contact_from_user(chat_id: chat_id) if should_request_contact?(chat_id)
+        return
+      end
+
+      if configuration.require_contact_for_support && !contact_known_for_user?(chat_id)
+        request_contact_from_user(chat_id: chat_id)
+        return
+      end
+
+      forward_message_to_support_chat(message, chat_id: chat_id)
+    end
+
+    def process_user_contact(message, chat_id:)
+      contact = message['contact'] || {}
+
+      unless valid_contact_for_chat?(contact: contact, chat_id: chat_id)
+        request_contact_from_user(chat_id: chat_id, text: configuration.contact_invalid_message)
+        return
+      end
+
+      profile = build_contact_profile(chat_id: chat_id, message: message, contact: contact)
+      store_user_profile(chat_id: chat_id, profile: profile)
+      notify_contact_received(profile)
+
+      adapter.send_message(
+        chat_id: chat_id,
+        text: configuration.contact_received_message,
+        reply_markup: remove_keyboard_markup
+      )
+    end
+
+    def process_support_chat_message(message, chat_id:)
       if message.key?('reply_to_message')
         # It's a reply in the support chat
         process_reply_in_support_chat(message)
       elsif message['text']&.start_with?('/')
-        process_command(message)
+        process_command(message, chat_id: chat_id)
       else
         # For non-command messages, you might want to handle differently or just ignore
         # For now, let's just acknowledge the message
-        acknowledge_non_command_message(message)
+        acknowledge_non_command_message(message, chat_id: chat_id)
       end
     end
 
-    def acknowledge_non_command_message(message)
+    def acknowledge_non_command_message(message, chat_id:)
       reply_message = 'I received your message, but I only respond to commands. Please use /start to get started.'
       adapter.send_message(
-        chat_id:             message_chat_id,
+        chat_id:             chat_id,
         text:                reply_message,
         reply_to_message_id: message['message_id']
       )
     end
 
-    def process_command(message)
+    def process_command(message, chat_id:)
       command = message['text'].split(/[ \@]/).first.downcase # Extract the command, normalize to lowercase
 
       case command
       when '/start'
-        send_welcome_message(chat_id: message_chat_id)
+        send_welcome_message(chat_id: chat_id)
       else
         # Respond to unknown commands
         unless configuration.ignore_unknown_commands
           unknown_command_response = "I don't know the command #{command}. Please use /start to begin or check the available commands."
-          adapter.send_message(chat_id: message_chat_id, text: unknown_command_response)
+          adapter.send_message(chat_id: chat_id, text: unknown_command_response)
         end
       end
     end
 
     def process_reply_in_support_chat(message)
       reply_to_message = message['reply_to_message']
+      reply_to_message_id = reply_to_message['message_id']
+      mapping = find_message_mapping(reply_to_message_id)
 
-      if reply_to_message.key?('forward_from')
-        # The reply is to a forwarded message
-        original_user_id = reply_to_message['forward_from']['id']
-        caption          = message['caption'] if message.key?('caption')
+      original_user_id = mapping && mapping[:chat_id]
+      original_user_id ||= reply_to_message.dig('forward_from', 'id')
+      return unless original_user_id
 
-        # Determine the type of media and prepare the content and options
-        type, media, options = extract_media_info(message)
-        options[:caption]    = caption if caption
+      caption          = message['caption'] if message.key?('caption')
 
-        message_id = message['message_id']
-        if :unknown == type
-          # Handle other types of messages or default case
-          warning_message = "Warning: The message type received from the user is not supported by the bot. Please assist the user directly."
-          adapter.send_message(
-            chat_id:             configuration.support_chat_id,
-            text:                warning_message,
-            reply_to_message_id: message_id
-          )
-        else
-          result = adapter.send_media(chat_id: original_user_id, type: type, media: media, **options)
-          if result
-            user_message_id = extract_message_id(result)
-            if user_message_id
-              support_message_id = message['message_id']
-              store_message_mapping(
-                support_message_id: support_message_id,
-                user_chat_id:       original_user_id,
-                user_message_id:    user_message_id
-              )
-            end
+      # Determine the type of media and prepare the content and options
+      type, media, options = extract_media_info(message)
+      options[:caption]    = caption if caption
+
+      message_id = message['message_id']
+      if :unknown == type
+        # Handle other types of messages or default case
+        warning_message = "Warning: The message type received from the user is not supported by the bot. Please assist the user directly."
+        adapter.send_message(
+          chat_id:             configuration.support_chat_id,
+          text:                warning_message,
+          reply_to_message_id: message_id
+        )
+      else
+        result = adapter.send_media(chat_id: original_user_id, type: type, media: media, **options)
+        if result
+          user_message_id = extract_message_id(result)
+          if user_message_id
+            support_message_id = message['message_id']
+            store_message_mapping(
+              support_message_id: support_message_id,
+              user_chat_id:       original_user_id,
+              user_message_id:    user_message_id
+            )
           end
-          # scheduler.cancel_scheduled_task(message_id)
         end
+        # scheduler.cancel_scheduled_task(message_id)
       end
     end
 
@@ -181,10 +228,10 @@ module TelegramSupportBot
       end
     end
 
-    def forward_message_to_support_chat(message)
+    def forward_message_to_support_chat(message, chat_id:)
       message_id = message['message_id']
       result = adapter.forward_message(
-        from_chat_id: message_chat_id,
+        from_chat_id: chat_id,
         message_id:   message_id,
         chat_id:      configuration.support_chat_id)
 
@@ -193,7 +240,7 @@ module TelegramSupportBot
         if support_message_id
           store_message_mapping(
             support_message_id: support_message_id,
-            user_chat_id:       message_chat_id,
+            user_chat_id:       chat_id,
             user_message_id:    message_id
           )
         end
@@ -312,6 +359,63 @@ module TelegramSupportBot
       warn "Failed to mirror reaction to chat_id=#{chat_id} message_id=#{message_id}: #{error.class}: #{error.message}"
     end
 
+    def request_contact_from_user(chat_id:, text: configuration.contact_request_message)
+      adapter.send_message(chat_id: chat_id, text: text, reply_markup: contact_request_keyboard)
+    end
+
+    def contact_request_keyboard
+      {
+        keyboard: [[{ text: 'Share phone number', request_contact: true }]],
+        resize_keyboard: true,
+        one_time_keyboard: true
+      }
+    end
+
+    def remove_keyboard_markup
+      { remove_keyboard: true }
+    end
+
+    def should_request_contact?(chat_id)
+      configuration.request_contact_on_start && !contact_known_for_user?(chat_id)
+    end
+
+    def contact_known_for_user?(chat_id)
+      !user_profile(chat_id).nil?
+    end
+
+    def valid_contact_for_chat?(contact:, chat_id:)
+      contact_user_id = contact['user_id'] || contact[:user_id]
+      return false if contact_user_id.nil?
+
+      same_chat_id?(contact_user_id, chat_id)
+    end
+
+    def build_contact_profile(chat_id:, message:, contact:)
+      sender = message['from'] || {}
+      {
+        chat_id: chat_id,
+        user_id: contact['user_id'] || contact[:user_id],
+        phone_number: contact['phone_number'] || contact[:phone_number],
+        first_name: contact['first_name'] || contact[:first_name] || sender['first_name'],
+        last_name: contact['last_name'] || contact[:last_name] || sender['last_name'],
+        username: sender['username'],
+        language_code: sender['language_code']
+      }
+    end
+
+    def store_user_profile(chat_id:, profile:)
+      user_profiles[chat_id] = profile
+      user_profiles[chat_id.to_s] = profile
+    end
+
+    def notify_contact_received(profile)
+      return unless configuration.on_contact_received.respond_to?(:call)
+
+      configuration.on_contact_received.call(profile)
+    rescue StandardError => error
+      warn "Failed to run on_contact_received callback: #{error.class}: #{error.message}"
+    end
+
     def extract_reaction_counts(reactions)
       counts = {}
       reaction_types = {}
@@ -413,5 +517,9 @@ module TelegramSupportBot
   # Reset the adapter instance (useful for testing or reconfiguration).
   def self.reset_adapter!
     @adapter = nil
+  end
+
+  def self.reset_state_store!
+    @state_store = nil
   end
 end

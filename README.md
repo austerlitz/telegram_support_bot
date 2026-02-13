@@ -43,6 +43,15 @@ TelegramSupportBot.configure do |config|
   config.adapter_options = { token: 'YOUR_TELEGRAM_BOT_TOKEN' }
   config.support_chat_id = 'YOUR_SUPPORT_CHAT_ID'
   config.welcome_message = 'Hi! How can we help you?'
+  # Optional: ask users to share their phone once for account lookup.
+  config.request_contact_on_start = true
+  # Optional: block forwarding until contact is shared.
+  config.require_contact_for_support = false
+  # Optional callback to persist/lookup user profile in your app.
+  config.on_contact_received = ->(profile) { YourUserMatcher.sync_from_telegram(profile) }
+  # Recommended in Kubernetes/multi-pod setup:
+  # config.state_store = :redis
+  # config.state_store_options = { url: ENV.fetch('REDIS_URL'), namespace: 'telegram_support_bot' }
 end
 ```
 
@@ -115,28 +124,51 @@ end
 Implement custom adapters by inheriting from `TelegramSupportBot::Adapter::Base` and defining
 message sending and forwarding methods.
 
-## Handling User Privacy Settings for Message Forwarding
+## User Identification With Phone Sharing
 
-Due to Telegram's privacy settings, users may have restricted the ability for bots to forward their
-messages with identifiable information. This restriction impacts the `forward_from` key, necessary
-for the bot to recognize and reply to users directly. To ensure seamless communication and support,
-we recommend including instructions in your bot's welcome message, asking users to allow message
-forwarding from your bot. Here's an example of how you can phrase this request:
+If you want support agents to identify users quickly in your CRM, you can request phone sharing once:
 
-```
-Please mind, that your privacy settings might prevent the bot from sending you the reply from the support team. Please consider adding this bot to your allow-list for forwarding. Here’s how you can do it:
-  
-1. Go to Settings in your Telegram app.
-2. Tap on 'Privacy and Security'.
-3. Scroll to 'Forwarded Messages'.
-4. Add this bot to the list of exceptions by selecting 'Always Allow' for it.
-
-This will allow the bot to send you back replies from the support team.
-
+```ruby
+TelegramSupportBot.configure do |config|
+  config.request_contact_on_start = true
+  config.require_contact_for_support = false
+  config.contact_request_message = 'Please share your phone number so we can identify your account.'
+  config.contact_received_message = 'Thanks! We have saved your phone number.'
+  config.on_contact_received = ->(profile) do
+    # profile keys:
+    # :chat_id, :user_id, :phone_number, :first_name, :last_name, :username, :language_code
+    UserIdentitySync.call(profile)
+  end
+end
 ```
 
-Including such instructions can help in reducing the friction in user support interactions and
-ensure that your support team can effectively communicate with users through the bot.
+If you set `require_contact_for_support = true`, the bot will ask for contact and will not forward
+other user messages until contact is shared.
+
+Support replies are routed by internal message mapping, so users do not need to change Telegram
+forwarding privacy settings to receive replies.
+
+## State Storage (Single Pod vs Multi-Pod)
+
+By default, runtime state is stored in-memory (`state_store = :memory`). This is fine for local
+development or a single process.
+
+For Kubernetes / multiple pods, configure Redis so message mappings, reaction state, and user
+profiles are shared:
+
+```ruby
+TelegramSupportBot.configure do |config|
+  config.state_store = :redis
+  config.state_store_options = {
+    url: ENV.fetch('REDIS_URL'),
+    namespace: 'telegram_support_bot'
+  }
+  # Optional TTL tuning:
+  # config.mapping_ttl_seconds = 30 * 24 * 60 * 60
+  # config.reaction_count_ttl_seconds = 7 * 24 * 60 * 60
+  # config.user_profile_ttl_seconds = nil
+end
+```
 
 ## Development
 

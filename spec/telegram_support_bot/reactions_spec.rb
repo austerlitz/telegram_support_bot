@@ -9,6 +9,7 @@ RSpec.describe TelegramSupportBot do
   let(:adapter) { instance_double(TelegramSupportBot::Adapters::TelegramBot) }
 
   before do
+    TelegramSupportBot.reset_state_store!
     TelegramSupportBot.configure do |config|
       config.support_chat_id = support_chat_id
       config.adapter = :telegram_bot
@@ -18,6 +19,7 @@ RSpec.describe TelegramSupportBot do
     TelegramSupportBot.message_map.clear
     TelegramSupportBot.reverse_message_map.clear
     TelegramSupportBot.reaction_count_state.clear
+    TelegramSupportBot.user_profiles.clear
   end
 
   describe '.process_update with message_reaction' do
@@ -172,12 +174,9 @@ RSpec.describe TelegramSupportBot do
         'text' => 'Hello'
       }
       
-      # Mock the message_chat_id which is set during process_message
-      TelegramSupportBot.instance_variable_set(:@message_chat_id, user_chat_id)
-
       allow(adapter).to receive(:forward_message).and_return({ 'message_id' => support_message_id })
 
-      TelegramSupportBot.send(:forward_message_to_support_chat, user_message)
+      TelegramSupportBot.send(:forward_message_to_support_chat, user_message, chat_id: user_chat_id)
 
       expect(TelegramSupportBot.message_map[support_message_id]).to eq({ chat_id: user_chat_id, message_id: user_message_id })
       expect(TelegramSupportBot.reverse_message_map["#{user_chat_id}:#{user_message_id}"]).to eq(support_message_id)
@@ -190,21 +189,23 @@ RSpec.describe TelegramSupportBot do
         'text' => 'Hello'
       }
 
-      TelegramSupportBot.instance_variable_set(:@message_chat_id, user_chat_id)
       allow(adapter).to receive(:forward_message).and_return({ 'ok' => true, 'result' => { 'message_id' => support_message_id } })
 
-      TelegramSupportBot.send(:forward_message_to_support_chat, user_message)
+      TelegramSupportBot.send(:forward_message_to_support_chat, user_message, chat_id: user_chat_id)
 
       expect(TelegramSupportBot.message_map[support_message_id]).to eq({ chat_id: user_chat_id, message_id: user_message_id })
       expect(TelegramSupportBot.reverse_message_map["#{user_chat_id}:#{user_message_id}"]).to eq(support_message_id)
     end
 
     it 'creates mappings when replying in support chat' do
+      forwarded_support_message_id = 9001
+      TelegramSupportBot.message_map[forwarded_support_message_id] = { chat_id: user_chat_id, message_id: user_message_id }
+
       admin_reply = {
         'message_id' => support_message_id,
         'chat' => { 'id' => support_chat_id },
         'reply_to_message' => {
-          'forward_from' => { 'id' => user_chat_id }
+          'message_id' => forwarded_support_message_id
         },
         'text' => 'Hi there'
       }
@@ -218,16 +219,38 @@ RSpec.describe TelegramSupportBot do
     end
 
     it 'creates mappings when replying in support chat with wrapped API response' do
+      forwarded_support_message_id = 9002
+      TelegramSupportBot.message_map[forwarded_support_message_id] = { chat_id: user_chat_id, message_id: user_message_id }
+
       admin_reply = {
         'message_id' => support_message_id,
         'chat' => { 'id' => support_chat_id },
         'reply_to_message' => {
-          'forward_from' => { 'id' => user_chat_id }
+          'message_id' => forwarded_support_message_id
         },
         'text' => 'Hi there'
       }
 
       allow(adapter).to receive(:send_media).and_return({ 'ok' => true, 'result' => { 'message_id' => 333 } })
+
+      TelegramSupportBot.send(:process_reply_in_support_chat, admin_reply)
+
+      expect(TelegramSupportBot.message_map[support_message_id]).to eq({ chat_id: user_chat_id, message_id: 333 })
+      expect(TelegramSupportBot.reverse_message_map["#{user_chat_id}:333"]).to eq(support_message_id)
+    end
+
+    it 'falls back to forward_from when mapping is unavailable' do
+      admin_reply = {
+        'message_id' => support_message_id,
+        'chat' => { 'id' => support_chat_id },
+        'reply_to_message' => {
+          'message_id' => 9999,
+          'forward_from' => { 'id' => user_chat_id }
+        },
+        'text' => 'Hi there'
+      }
+
+      allow(adapter).to receive(:send_media).and_return({ 'message_id' => 333 })
 
       TelegramSupportBot.send(:process_reply_in_support_chat, admin_reply)
 
