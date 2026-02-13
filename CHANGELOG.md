@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.09] - 2026-02-13
+
 ### Added
 - Configurable support-chat non-command behavior:
   `ignore_non_command_messages` (default `true`) and
