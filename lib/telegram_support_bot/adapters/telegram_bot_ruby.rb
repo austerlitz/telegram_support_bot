@@ -43,6 +43,10 @@ module TelegramSupportBot
       def forward_message(from_chat_id:, chat_id:, message_id:)
         bot.api.forward_message(chat_id: chat_id, from_chat_id: from_chat_id, message_id: message_id)
       end
+
+      def set_message_reaction(chat_id:, message_id:, reaction:, **options)
+        bot.api.set_message_reaction(chat_id: chat_id, message_id: message_id, reaction: reaction, **options)
+      end
     end
   end
 end

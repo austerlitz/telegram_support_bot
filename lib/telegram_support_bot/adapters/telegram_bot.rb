@@ -50,6 +50,15 @@ module TelegramSupportBot
           message_id:   message_id
         )
       end
+
+      def set_message_reaction(chat_id:, message_id:, reaction:, **options)
+        @bot.set_message_reaction(
+          chat_id:    chat_id,
+          message_id: message_id,
+          reaction:   reaction,
+          **options
+        )
+      end
     end
   end
 end

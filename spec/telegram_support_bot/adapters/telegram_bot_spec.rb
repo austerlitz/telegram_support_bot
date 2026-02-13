@@ -13,6 +13,7 @@ RSpec.describe TelegramSupportBot::Adapters::TelegramBot, :telegram_bot do
     allow(Telegram::Bot::Client).to receive(:new).and_return(telegram_mock)
     allow(telegram_mock).to receive(:send_message)
     allow(telegram_mock).to receive(:forward_message)
+    allow(telegram_mock).to receive(:set_message_reaction)
   end
 
   it_behaves_like "a Telegram bot adapter"

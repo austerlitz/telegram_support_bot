@@ -5,7 +5,7 @@ RSpec.describe TelegramSupportBot do
     expect(TelegramSupportBot::VERSION).not_to be nil
   end
 
-  it "does something useful" do
-    expect(false).to eq(true)
+  it "can be configured" do
+    expect(TelegramSupportBot).to respond_to(:configure)
   end
 end

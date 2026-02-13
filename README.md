@@ -143,7 +143,56 @@ ensure that your support team can effectively communicate with users through the
 - Run `bin/setup` to install dependencies.
 - Use `rake spec` for tests and `bin/console` for an interactive prompt.
 - To install locally, use `bundle exec rake install`.
-- For releases, update `version.rb`, and run `bundle exec rake release`.
+- For releases, update `lib/telegram_support_bot/version.rb` and `CHANGELOG.md`, then run `bundle exec rake release`.
+
+### Local Testing Without Rails (Polling)
+
+You can run the bot locally without a Rails app by using the included script:
+
+Prerequisites:
+- Add the bot as an **administrator** in the support chat if you want support-side reactions to be delivered as updates.
+- Bots can set only one reaction per message via Bot API, so only one mirrored reaction is applied when multiple are present.
+
+1. Export required environment variables:
+
+```bash
+export TELEGRAM_BOT_TOKEN=your_bot_token
+export SUPPORT_CHAT_ID=your_support_chat_id
+# optional; defaults to telegram_bot
+export TSB_ADAPTER=telegram_bot
+# optional; used by telegram_bot adapter
+export TELEGRAM_BOT_USERNAME=your_bot_username
+```
+
+2. Disable webhook mode for that bot token (polling and webhooks cannot be used together):
+
+```bash
+curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/deleteWebhook" > /dev/null
+```
+
+3. Start the local poller:
+
+```bash
+bundle exec ruby script/dev_poll.rb
+```
+
+4. In Telegram, verify:
+- user message is forwarded to support chat
+- support reply is sent back to user
+- reactions are mirrored in both directions
+
+If you want to test with `telegram_bot_ruby` adapter, set `TSB_ADAPTER=telegram_bot_ruby` and add
+the `telegram-bot-ruby` gem in your environment.
+
+### Switch Back To Webhook Mode
+
+After polling tests, set your webhook again:
+
+```bash
+curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://YOUR_PUBLIC_HOST/telegram/webhook","allowed_updates":["message","message_reaction","message_reaction_count","my_chat_member"]}'
+```
 
 ## Contributing
 

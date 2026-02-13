@@ -35,6 +35,10 @@ module TelegramSupportBot
         # forward messages to the support chat
       end
 
+      def set_message_reaction(chat_id:, message_id:, reaction:, **options)
+        # set reaction to a message
+      end
+
       def on_message(&block)
         # Implementation to register a block to be called on new messages
       end
