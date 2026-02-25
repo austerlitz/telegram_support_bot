@@ -10,6 +10,7 @@ RSpec.configure do |config|
   config.example_status_persistence_file_path = ".rspec_status"
 
   config.before do
+    TelegramSupportBot.reset! if TelegramSupportBot.respond_to?(:reset!)
     TelegramSupportBot.reset_adapter!
     TelegramSupportBot.reset_state_store! if TelegramSupportBot.respond_to?(:reset_state_store!)
   end

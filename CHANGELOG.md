@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-02-25
+
+### Added
+- Multi-bot runtime support in one process with keyed configuration and processing:
+  `configure(:bot_key)` and `process_update(update, bot: :bot_key)`.
+- Bot-scoped adapter/state-store/scheduler instances to isolate mappings, reactions, and user profiles per bot key.
+- Redis state namespace isolation for non-default bot keys.
+- Multi-bot isolation test coverage for message mappings, support chat routing, contact profiles, and Redis namespaces.
+
+### Changed
+- Backward compatibility preserved: no-arg `configure` and `process_update` continue using `:default`.
+- Development dependency resolution now has Ruby-version-aware constraints for older runtimes.
+
 ## [0.1.09] - 2026-02-13
 
 ### Added

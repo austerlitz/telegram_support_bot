@@ -10,69 +10,152 @@ require_relative 'telegram_support_bot/adapters/telegram_bot'
 require_relative 'telegram_support_bot/adapters/telegram_bot_ruby'
 
 module TelegramSupportBot
-  class << self
-    attr_accessor :configuration
+  DEFAULT_BOT_KEY = :default
+  BOT_CONTEXT_THREAD_KEY = :telegram_support_bot_current_bot_key
 
+  class << self
     # Provides a method to configure the gem.
-    def configure
-      self.configuration ||= Configuration.new
-      yield(configuration) if block_given?
+    def configure(bot_key = DEFAULT_BOT_KEY)
+      key = normalize_bot_key(bot_key)
+      config = configuration(key)
+      yield(config) if block_given?
+      config
+    end
+
+    def configuration(bot_key = nil)
+      key = bot_key.nil? ? current_bot_key : normalize_bot_key(bot_key)
+      configurations[key] ||= Configuration.new
+    end
+
+    def configuration=(config)
+      configurations[DEFAULT_BOT_KEY] = config
     end
 
     # Lazily builds and returns the adapter based on the current configuration.
     # This method initializes the adapter when it's first called.
-    def adapter
-      @adapter ||= AdapterFactory.build(configuration.adapter, configuration.adapter_options)
+    def adapter(bot_key = nil)
+      key = bot_key.nil? ? current_bot_key : normalize_bot_key(bot_key)
+      adapters[key] ||= AdapterFactory.build(configuration(key).adapter, configuration(key).adapter_options)
     end
 
-    def state_store
-      @state_store ||= StateStore.build(configuration)
+    def state_store(bot_key = nil)
+      key = bot_key.nil? ? current_bot_key : normalize_bot_key(bot_key)
+      state_stores[key] ||= StateStore.build(configuration(key), bot_key: key)
     end
 
-    def message_map
-      state_store.message_map
+    def message_map(bot_key = nil)
+      state_store(bot_key).message_map
     end
 
-    def reverse_message_map
-      state_store.reverse_message_map
+    def reverse_message_map(bot_key = nil)
+      state_store(bot_key).reverse_message_map
     end
 
-    def reaction_count_state
-      state_store.reaction_count_state
+    def reaction_count_state(bot_key = nil)
+      state_store(bot_key).reaction_count_state
     end
 
-    def user_profiles
-      state_store.user_profiles
+    def user_profiles(bot_key = nil)
+      state_store(bot_key).user_profiles
     end
 
-    def user_profile(chat_id)
-      user_profiles[chat_id] || user_profiles[chat_id.to_s] || user_profiles[chat_id.to_i]
+    def user_profile(chat_id, bot: nil)
+      profiles = user_profiles(bot)
+      profiles[chat_id] || profiles[chat_id.to_s] || profiles[chat_id.to_i]
     end
 
-    def scheduler
-      @scheduler ||= AutoAwayScheduler.new(adapter, configuration)
+    def scheduler(bot_key = nil)
+      key = bot_key.nil? ? current_bot_key : normalize_bot_key(bot_key)
+      schedulers[key] ||= AutoAwayScheduler.new(adapter(key), configuration(key))
     end
 
-    def process_update(update)
-      # Handle different types of updates
-      if update['message']
-        # Process standard messages
-        process_message(update['message'])
-      elsif update['message_reaction']
-        process_message_reaction(update['message_reaction'])
-      elsif update['message_reaction_count']
-        process_message_reaction_count(update['message_reaction_count'])
-      elsif update['my_chat_member']
-        # Handle the bot being added to or removed from a chat
-        handle_my_chat_member_update(update['my_chat_member'])
-        # Add other update types as needed
-      else
-        # Log or handle unknown update types
-        puts "Received an unknown type of update: #{update}"
+    def process_update(update, bot: DEFAULT_BOT_KEY)
+      with_bot_context(bot) do
+        # Handle different types of updates
+        if update['message']
+          # Process standard messages
+          process_message(update['message'])
+        elsif update['message_reaction']
+          process_message_reaction(update['message_reaction'])
+        elsif update['message_reaction_count']
+          process_message_reaction_count(update['message_reaction_count'])
+        elsif update['my_chat_member']
+          # Handle the bot being added to or removed from a chat
+          handle_my_chat_member_update(update['my_chat_member'])
+          # Add other update types as needed
+        else
+          # Log or handle unknown update types
+          puts "Received an unknown type of update: #{update}"
+        end
       end
     end
 
+    # Reset the adapter instance (useful for testing or reconfiguration).
+    def reset_adapter!(bot_key = nil)
+      reset_registry!(adapters, bot_key)
+    end
+
+    def reset_state_store!(bot_key = nil)
+      reset_registry!(state_stores, bot_key)
+    end
+
+    def reset_scheduler!(bot_key = nil)
+      reset_registry!(schedulers, bot_key)
+    end
+
+    def reset_configuration!(bot_key = nil)
+      reset_registry!(configurations, bot_key)
+    end
+
+    def reset!(bot_key = nil)
+      reset_adapter!(bot_key)
+      reset_state_store!(bot_key)
+      reset_scheduler!(bot_key)
+      reset_configuration!(bot_key)
+    end
+
     private
+
+    def configurations
+      @configurations ||= {}
+    end
+
+    def adapters
+      @adapters ||= {}
+    end
+
+    def state_stores
+      @state_stores ||= {}
+    end
+
+    def schedulers
+      @schedulers ||= {}
+    end
+
+    def current_bot_key
+      Thread.current[BOT_CONTEXT_THREAD_KEY] || DEFAULT_BOT_KEY
+    end
+
+    def with_bot_context(bot_key)
+      normalized_bot_key = normalize_bot_key(bot_key)
+      previous_bot_key = Thread.current[BOT_CONTEXT_THREAD_KEY]
+      Thread.current[BOT_CONTEXT_THREAD_KEY] = normalized_bot_key
+      yield
+    ensure
+      Thread.current[BOT_CONTEXT_THREAD_KEY] = previous_bot_key
+    end
+
+    def normalize_bot_key(bot_key)
+      (bot_key || DEFAULT_BOT_KEY).to_sym
+    end
+
+    def reset_registry!(registry, bot_key)
+      if bot_key.nil?
+        registry.clear
+      else
+        registry.delete(normalize_bot_key(bot_key))
+      end
+    end
 
     def process_message(message)
       chat_id = message.dig('chat', 'id')
@@ -511,12 +594,4 @@ module TelegramSupportBot
 
   end
 
-  # Reset the adapter instance (useful for testing or reconfiguration).
-  def self.reset_adapter!
-    @adapter = nil
-  end
-
-  def self.reset_state_store!
-    @state_store = nil
-  end
 end

@@ -11,6 +11,19 @@ RSpec.describe TelegramSupportBot::Configuration do
     expect(TelegramSupportBot.configuration.adapter).to eq(:telegram_bot)
   end
 
+  it 'supports keyed bot configurations while preserving default configuration' do
+    TelegramSupportBot.configure do |config|
+      config.support_chat_id = 111
+    end
+
+    TelegramSupportBot.configure(:partner) do |config|
+      config.support_chat_id = 222
+    end
+
+    expect(TelegramSupportBot.configuration.support_chat_id).to eq(111)
+    expect(TelegramSupportBot.configuration(:partner).support_chat_id).to eq(222)
+  end
+
   it 'supports contact onboarding settings' do
     TelegramSupportBot.configure do |config|
       config.request_contact_on_start = true

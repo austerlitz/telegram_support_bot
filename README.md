@@ -27,7 +27,7 @@ gem 'telegram-support-bot'
 
 1. **Create Your Bot** via BotFather on Telegram to get your bot token.
 2. **Deploy Your Application** and set up a controller action for webhook callbacks, directing them
-   to `TelegramSupportBot.process_update`.
+   to `TelegramSupportBot.process_update` (or `TelegramSupportBot.process_update(update, bot: :your_key)` for keyed bots).
 3. **Set the Webhook URL** using the Telegram Bot API to your controller action.
 
 ### Setting Up Your Telegram Bot
@@ -59,6 +59,50 @@ TelegramSupportBot.configure do |config|
   # config.state_store_options = { url: ENV.fetch('REDIS_URL'), namespace: 'telegram_support_bot' }
 end
 ```
+
+### Multiple Bots In One Process
+
+Use keyed configuration when one app process serves multiple Telegram bots/chats:
+
+```ruby
+TelegramSupportBot.configure(:default) do |config|
+  config.adapter_options = { token: ENV.fetch('TELEGRAM_DEFAULT_TOKEN') }
+  config.support_chat_id = ENV.fetch('TELEGRAM_DEFAULT_SUPPORT_CHAT_ID')
+end
+
+TelegramSupportBot.configure(:partners) do |config|
+  config.adapter_options = { token: ENV.fetch('TELEGRAM_PARTNERS_TOKEN') }
+  config.support_chat_id = ENV.fetch('TELEGRAM_PARTNERS_SUPPORT_CHAT_ID')
+end
+
+# Route incoming webhook to the matching bot key:
+TelegramSupportBot.process_update(update, bot: :partners)
+```
+
+Backward compatibility is preserved:
+- `TelegramSupportBot.configure { ... }` configures `:default`
+- `TelegramSupportBot.process_update(update)` processes with `:default`
+
+Typical webhook routing in Rails:
+
+```ruby
+# legacy/default bot
+post '/v2/telegram/support' => 'api/v2/telegram#support'
+# keyed bot
+post '/v2/telegram/:bot_key/support' => 'api/v2/telegram#support'
+```
+
+```ruby
+def support
+  update = JSON.parse(request.body.read)
+  bot_key = params[:bot_key].presence&.to_sym || :default
+  TelegramSupportBot.process_update(update, bot: bot_key)
+  head :ok
+end
+```
+
+When using Redis state store, non-default bot keys are namespaced automatically
+(`telegram_support_bot:<bot_key>:...`) so mappings/profiles do not leak across bots.
 
 3. **Interact with Users**: Messages to your bot will be forwarded to the support chat, and replies
    in the chat will be sent back to the users.

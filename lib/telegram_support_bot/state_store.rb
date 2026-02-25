@@ -27,9 +27,9 @@ module TelegramSupportBot
       end
     end
 
-    def self.build(configuration)
+    def self.build(configuration, bot_key: TelegramSupportBot::DEFAULT_BOT_KEY)
       backend = configuration.state_store.to_sym
-      options = configuration.state_store_options || {}
+      options = normalize_options(configuration.state_store_options)
 
       case backend
       when :memory
@@ -41,6 +41,7 @@ module TelegramSupportBot
         )
       when :redis
         require_relative 'state_stores/redis'
+        options = isolate_redis_namespace(options, bot_key)
         StateStores::Redis.new(
           mapping_ttl_seconds: configuration.mapping_ttl_seconds,
           reaction_count_ttl_seconds: configuration.reaction_count_ttl_seconds,
@@ -51,6 +52,25 @@ module TelegramSupportBot
         raise ArgumentError, "Unsupported state store backend: #{backend}"
       end
     end
+
+    def self.normalize_options(options)
+      (options || {}).each_with_object({}) do |(key, value), memo|
+        memo[key.to_sym] = value
+      end
+    end
+    private_class_method :normalize_options
+
+    def self.isolate_redis_namespace(options, bot_key)
+      normalized_bot_key = (bot_key || TelegramSupportBot::DEFAULT_BOT_KEY).to_sym
+      return options if normalized_bot_key == TelegramSupportBot::DEFAULT_BOT_KEY
+
+      base_namespace = options[:namespace] || StateStores::Redis::DEFAULT_NAMESPACE
+      suffix = ":#{normalized_bot_key}"
+      namespaced = base_namespace.to_s.end_with?(suffix) ? base_namespace.to_s : "#{base_namespace}#{suffix}"
+
+      options.merge(namespace: namespaced)
+    end
+    private_class_method :isolate_redis_namespace
   end
 end
 
