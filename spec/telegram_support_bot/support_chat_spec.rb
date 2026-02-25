@@ -47,4 +47,24 @@ RSpec.describe TelegramSupportBot do
       TelegramSupportBot.process_update(non_command_update)
     end
   end
+
+  describe 'support chat command behavior' do
+    it 'handles /start command with bot mention and payload' do
+      update = {
+        'message' => {
+          'message_id' => 202,
+          'chat' => { 'id' => support_chat_id },
+          'text' => '/start@my_bot lead_123_456'
+        }
+      }
+
+      expect(adapter).to receive(:send_message).with(
+        chat_id: support_chat_id,
+        text: a_string_including("<code>#{support_chat_id}</code>"),
+        parse_mode: 'HTML'
+      )
+
+      TelegramSupportBot.process_update(update)
+    end
+  end
 end

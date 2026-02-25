@@ -173,9 +173,15 @@ module TelegramSupportBot
         return
       end
 
-      if message['text'] == '/start'
+      command_data = parse_command(message['text'])
+
+      if command_data && command_data[:command] == '/start'
         adapter.send_message(chat_id: chat_id, text: configuration.welcome_message)
         request_contact_from_user(chat_id: chat_id) if should_request_contact?(chat_id)
+        return
+      end
+
+      if command_data && handle_user_command(command_data: command_data, message: message, chat_id: chat_id)
         return
       end
 
@@ -226,7 +232,9 @@ module TelegramSupportBot
     end
 
     def process_command(message, chat_id:)
-      command = message['text'].split(/[ \@]/).first.downcase # Extract the command, normalize to lowercase
+      command_data = parse_command(message['text'])
+      command = command_data && command_data[:command]
+      return unless command
 
       case command
       when '/start'
@@ -238,6 +246,35 @@ module TelegramSupportBot
           adapter.send_message(chat_id: chat_id, text: unknown_command_response)
         end
       end
+    end
+
+    def handle_user_command(command_data:, message:, chat_id:)
+      callback = configuration.on_user_command
+      return false unless callback.respond_to?(:call)
+      return false if command_data[:command] == '/start'
+
+      callback.call(
+        command: command_data[:command],
+        bot_username: command_data[:bot_username],
+        args: command_data[:args],
+        message: message,
+        chat_id: chat_id
+      )
+    rescue StandardError => error
+      warn "Failed to run on_user_command callback: #{error.class}: #{error.message}"
+      false
+    end
+
+    def parse_command(text)
+      return nil unless text.is_a?(String)
+
+      token, args = text.strip.split(/\s+/, 2)
+      return nil unless token&.start_with?('/')
+
+      command, bot_username = token.split('@', 2)
+      return nil if command.nil? || command.empty?
+
+      { command: command.downcase, bot_username: bot_username, args: args&.strip }
     end
 
     def process_reply_in_support_chat(message)

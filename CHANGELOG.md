@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-02-25
+
+### Added
+- Optional host callback `on_user_command` for user-chat commands other than `/start`.
+  Return `true` to mark a command as handled and skip forwarding to support chat.
+
+### Fixed
+- User-chat `/start` detection now recognizes deep-link command forms and bot mentions:
+  `/start`, `/start <payload>`, `/start@botname`, `/start@botname <payload>`.
+- Start commands in user chats continue to run welcome/contact onboarding and are not forwarded to the support chat.
+
 ## [0.1.10] - 2026-02-25
 
 ### Added

@@ -54,6 +54,9 @@ TelegramSupportBot.configure do |config|
   config.require_contact_for_support = false
   # Optional callback to persist/lookup user profile in your app.
   config.on_contact_received = ->(profile) { YourUserMatcher.sync_from_telegram(profile) }
+  # Optional callback for user-chat commands other than /start.
+  # Return true to mark the command as handled (it will not be forwarded).
+  config.on_user_command = ->(command:, args:, chat_id:, message:, bot_username: nil) { false }
   # Recommended in Kubernetes/multi-pod setup:
   # config.state_store = :redis
   # config.state_store_options = { url: ENV.fetch('REDIS_URL'), namespace: 'telegram_support_bot' }
@@ -196,6 +199,29 @@ other user messages until contact is shared.
 
 Support replies are routed by internal message mapping, so users do not need to change Telegram
 forwarding privacy settings to receive replies.
+
+## Host Handling For User Commands
+
+You can handle user-chat commands in your app before they are forwarded to support:
+
+```ruby
+TelegramSupportBot.configure do |config|
+  config.on_user_command = lambda do |command:, args:, chat_id:, message:, bot_username: nil|
+    case command
+    when '/help'
+      TelegramSupportBot.adapter.send_message(chat_id: chat_id, text: 'How can we help?')
+      true
+    else
+      false
+    end
+  end
+end
+```
+
+Behavior:
+- Triggered only for user-chat commands that start with `/` and are not `/start`.
+- Receives `command` (normalized to lowercase), `bot_username` (if present), and `args` (text after command).
+- Return `true` to stop forwarding to support chat; return `false`/`nil` to keep default forwarding.
 
 ## State Storage (Single Pod vs Multi-Pod)
 

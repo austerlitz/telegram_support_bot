@@ -31,15 +31,51 @@ RSpec.describe TelegramSupportBot do
   end
 
   describe 'contact onboarding' do
-    it 'requests contact on /start when enabled' do
+    shared_examples 'start command welcome flow' do |text|
+      it "treats #{text.inspect} as /start" do
+        update = {
+          'message' => {
+            'message_id' => 1,
+            'chat' => { 'id' => user_chat_id },
+            'text' => text
+          }
+        }
+
+        expect(adapter).to receive(:send_message).ordered.with(chat_id: user_chat_id, text: TelegramSupportBot.configuration.welcome_message)
+        expect(adapter).to receive(:send_message).ordered.with(
+          chat_id: user_chat_id,
+          text: 'Please share your phone',
+          reply_markup: {
+            keyboard: [[{ text: 'Share phone number', request_contact: true }]],
+            resize_keyboard: true,
+            one_time_keyboard: true
+          }
+        )
+        expect(adapter).not_to receive(:forward_message)
+
+        TelegramSupportBot.process_update(update)
+      end
+    end
+
+    include_examples 'start command welcome flow', '/start'
+    include_examples 'start command welcome flow', '/start lead_123_456'
+    include_examples 'start command welcome flow', '/start@my_bot'
+    include_examples 'start command welcome flow', '/start@my_bot lead_123_456'
+
+    it 'does not pass /start to host command callback' do
+      callback = double('user_command_callback')
+      allow(callback).to receive(:call).and_return(true)
+      TelegramSupportBot.configuration.on_user_command = callback
+
       update = {
         'message' => {
-          'message_id' => 1,
+          'message_id' => 2_001,
           'chat' => { 'id' => user_chat_id },
-          'text' => '/start'
+          'text' => '/start lead_123_456'
         }
       }
 
+      expect(callback).not_to receive(:call)
       expect(adapter).to receive(:send_message).ordered.with(chat_id: user_chat_id, text: TelegramSupportBot.configuration.welcome_message)
       expect(adapter).to receive(:send_message).ordered.with(
         chat_id: user_chat_id,
@@ -50,6 +86,92 @@ RSpec.describe TelegramSupportBot do
           one_time_keyboard: true
         }
       )
+
+      TelegramSupportBot.process_update(update)
+    end
+
+    it 'does not treat /starter as /start' do
+      update = {
+        'message' => {
+          'message_id' => 11,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/starter'
+        }
+      }
+
+      expect(adapter).to receive(:forward_message).with(
+        from_chat_id: user_chat_id,
+        message_id: 11,
+        chat_id: support_chat_id
+      ).and_return({ 'message_id' => 555 })
+      expect(adapter).not_to receive(:send_message).with(chat_id: user_chat_id, text: TelegramSupportBot.configuration.welcome_message)
+
+      TelegramSupportBot.process_update(update)
+    end
+
+    it 'does not treat /start123 as /start' do
+      update = {
+        'message' => {
+          'message_id' => 12,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start123'
+        }
+      }
+
+      expect(adapter).to receive(:forward_message).with(
+        from_chat_id: user_chat_id,
+        message_id: 12,
+        chat_id: support_chat_id
+      ).and_return({ 'message_id' => 555 })
+      expect(adapter).not_to receive(:send_message).with(chat_id: user_chat_id, text: TelegramSupportBot.configuration.welcome_message)
+
+      TelegramSupportBot.process_update(update)
+    end
+
+    it 'passes non-start commands to host callback and does not forward when handled' do
+      captured_command = nil
+      TelegramSupportBot.configuration.on_user_command = lambda do |**payload|
+        captured_command = payload
+        true
+      end
+
+      update = {
+        'message' => {
+          'message_id' => 13,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/help@my_bot topic one'
+        }
+      }
+
+      expect(adapter).not_to receive(:forward_message)
+
+      TelegramSupportBot.process_update(update)
+
+      expect(captured_command).to eq(
+        command: '/help',
+        bot_username: 'my_bot',
+        args: 'topic one',
+        message: update['message'],
+        chat_id: user_chat_id
+      )
+    end
+
+    it 'forwards non-start commands when host callback does not handle them' do
+      TelegramSupportBot.configuration.on_user_command = ->(**_payload) { false }
+
+      update = {
+        'message' => {
+          'message_id' => 14,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/help fallback'
+        }
+      }
+
+      expect(adapter).to receive(:forward_message).with(
+        from_chat_id: user_chat_id,
+        message_id: 14,
+        chat_id: support_chat_id
+      ).and_return({ 'message_id' => 555 })
 
       TelegramSupportBot.process_update(update)
     end

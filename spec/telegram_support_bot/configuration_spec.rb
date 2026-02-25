@@ -40,6 +40,16 @@ RSpec.describe TelegramSupportBot::Configuration do
     expect(TelegramSupportBot.configuration.contact_invalid_message).to eq('Invalid')
   end
 
+  it 'supports host user-command callback setting' do
+    callback = ->(**_payload) { true }
+
+    TelegramSupportBot.configure do |config|
+      config.on_user_command = callback
+    end
+
+    expect(TelegramSupportBot.configuration.on_user_command).to eq(callback)
+  end
+
   it 'supports non-command support chat behavior settings' do
     TelegramSupportBot.configure do |config|
       config.ignore_non_command_messages = false
