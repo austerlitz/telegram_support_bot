@@ -59,6 +59,10 @@ module TelegramSupportBot
       state_store(bot_key).user_profiles
     end
 
+    def start_forwarded_users(bot_key = nil)
+      state_store(bot_key).start_forwarded_users
+    end
+
     def user_profile(chat_id, bot: nil)
       profiles = user_profiles(bot)
       profiles[chat_id] || profiles[chat_id.to_s] || profiles[chat_id.to_i]
@@ -178,6 +182,7 @@ module TelegramSupportBot
       if command_data && command_data[:command] == '/start'
         adapter.send_message(chat_id: chat_id, text: configuration.welcome_message)
         request_contact_from_user(chat_id: chat_id) if should_request_contact?(chat_id)
+        forward_start_to_support_chat_if_needed(message, chat_id: chat_id)
         return
       end
 
@@ -363,6 +368,7 @@ module TelegramSupportBot
         end
       end
       # scheduler.schedule_auto_away_message(message_id, message_chat_id)
+      result
     end
 
     def handle_my_chat_member_update(update)
@@ -501,6 +507,21 @@ module TelegramSupportBot
 
     def should_request_contact?(chat_id)
       configuration.request_contact_on_start && !contact_known_for_user?(chat_id)
+    end
+
+    def should_forward_start_to_support?(chat_id)
+      configuration.forward_start_to_support && !start_forwarded_to_support?(chat_id)
+    end
+
+    def forward_start_to_support_chat_if_needed(message, chat_id:)
+      return unless should_forward_start_to_support?(chat_id)
+      return unless forward_message_to_support_chat(message, chat_id: chat_id)
+
+      start_forwarded_users[chat_id] = true
+    end
+
+    def start_forwarded_to_support?(chat_id)
+      !start_forwarded_users[chat_id].nil?
     end
 
     def contact_known_for_user?(chat_id)

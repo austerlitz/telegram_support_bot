@@ -31,6 +31,7 @@ RSpec.describe TelegramSupportBot::Configuration do
       config.contact_request_message = 'Share contact'
       config.contact_received_message = 'Saved'
       config.contact_invalid_message = 'Invalid'
+      config.forward_start_to_support = true
     end
 
     expect(TelegramSupportBot.configuration.request_contact_on_start).to eq(true)
@@ -38,6 +39,7 @@ RSpec.describe TelegramSupportBot::Configuration do
     expect(TelegramSupportBot.configuration.contact_request_message).to eq('Share contact')
     expect(TelegramSupportBot.configuration.contact_received_message).to eq('Saved')
     expect(TelegramSupportBot.configuration.contact_invalid_message).to eq('Invalid')
+    expect(TelegramSupportBot.configuration.forward_start_to_support).to eq(true)
   end
 
   it 'supports host user-command callback setting' do

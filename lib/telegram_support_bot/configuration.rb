@@ -6,7 +6,7 @@ module TelegramSupportBot
                   :auto_away_message, :auto_away_interval, :ignore_unknown_commands,
                   :ignore_non_command_messages, :non_command_message_response,
                   :request_contact_on_start, :require_contact_for_support, :contact_request_message,
-                  :contact_received_message, :contact_invalid_message, :on_contact_received,
+                  :contact_received_message, :contact_invalid_message, :forward_start_to_support, :on_contact_received,
                   :on_user_command,
                   :state_store, :state_store_options, :mapping_ttl_seconds,
                   :reaction_count_ttl_seconds, :user_profile_ttl_seconds
@@ -25,6 +25,7 @@ module TelegramSupportBot
       @contact_request_message = 'Please share your phone number so we can quickly identify your account.'
       @contact_received_message = 'Thanks! We have saved your phone number.'
       @contact_invalid_message = 'Please use the button below to share your own phone number.'
+      @forward_start_to_support = false
       @on_contact_received = nil
       @on_user_command = nil
       @state_store = :memory

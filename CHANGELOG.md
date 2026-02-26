@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-02-26
+
+### Added
+- Optional `forward_start_to_support` configuration to forward the first user `/start`
+  message to support chat, so the team can proactively start the conversation.
+
 ## [0.1.12] - 2026-02-26
 
 ### Fixed

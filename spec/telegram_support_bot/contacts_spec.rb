@@ -28,6 +28,7 @@ RSpec.describe TelegramSupportBot do
     TelegramSupportBot.reverse_message_map.clear
     TelegramSupportBot.reaction_count_state.clear
     TelegramSupportBot.user_profiles.clear
+    TelegramSupportBot.start_forwarded_users.clear
   end
 
   describe 'contact onboarding' do
@@ -263,6 +264,68 @@ RSpec.describe TelegramSupportBot do
       expect(adapter).not_to receive(:forward_message)
 
       TelegramSupportBot.process_update(message_update)
+    end
+
+    it 'can forward first /start message to support when configured' do
+      TelegramSupportBot.configuration.forward_start_to_support = true
+
+      update = {
+        'message' => {
+          'message_id' => 15,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+
+      expect(adapter).to receive(:send_message).ordered.with(chat_id: user_chat_id, text: TelegramSupportBot.configuration.welcome_message)
+      expect(adapter).to receive(:send_message).ordered.with(
+        chat_id: user_chat_id,
+        text: 'Please share your phone',
+        reply_markup: {
+          keyboard: [[{ text: 'Share phone number', request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true
+        }
+      )
+      expect(adapter).to receive(:forward_message).with(
+        from_chat_id: user_chat_id,
+        message_id: 15,
+        chat_id: support_chat_id
+      ).and_return({ 'message_id' => 556 })
+
+      TelegramSupportBot.process_update(update)
+
+      expect(TelegramSupportBot.start_forwarded_users[user_chat_id]).to eq(true)
+      expect(TelegramSupportBot.message_map[556]).to eq(chat_id: user_chat_id, message_id: 15)
+    end
+
+    it 'forwards /start only once per user when enabled' do
+      TelegramSupportBot.configuration.forward_start_to_support = true
+      TelegramSupportBot.configuration.request_contact_on_start = false
+
+      first_start = {
+        'message' => {
+          'message_id' => 16,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+      second_start = {
+        'message' => {
+          'message_id' => 17,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+
+      expect(adapter).to receive(:forward_message).once.with(
+        from_chat_id: user_chat_id,
+        message_id: 16,
+        chat_id: support_chat_id
+      ).and_return({ 'message_id' => 557 })
+
+      TelegramSupportBot.process_update(first_start)
+      TelegramSupportBot.process_update(second_start)
     end
   end
 end

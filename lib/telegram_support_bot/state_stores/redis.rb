@@ -57,6 +57,15 @@ module TelegramSupportBot
         )
       end
 
+      def start_forwarded_users
+        @start_forwarded_users_proxy ||= StateStore::MapProxy.new(
+          get_proc:   ->(key) { get_start_forwarded_user(key) },
+          set_proc:   ->(key, value) { set_start_forwarded_user(key, value) },
+          clear_proc: -> { clear_start_forwarded_users },
+          size_proc:  -> { start_forwarded_users_size }
+        )
+      end
+
       def get_message_mapping(key)
         payload = parse_json(@redis.get(map_key(:message_map, key)))
         symbolize_hash(payload)
@@ -122,6 +131,22 @@ module TelegramSupportBot
 
       def user_profiles_size
         count_by_prefix(prefix(:user_profiles))
+      end
+
+      def get_start_forwarded_user(key)
+        parse_json(@redis.get(map_key(:start_forwarded_users, key)))
+      end
+
+      def set_start_forwarded_user(key, value)
+        write_json(map_key(:start_forwarded_users, key), value, @user_profile_ttl_seconds)
+      end
+
+      def clear_start_forwarded_users
+        delete_by_prefix(prefix(:start_forwarded_users))
+      end
+
+      def start_forwarded_users_size
+        count_by_prefix(prefix(:start_forwarded_users))
       end
 
       private

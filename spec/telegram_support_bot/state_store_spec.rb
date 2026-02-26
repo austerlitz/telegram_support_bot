@@ -47,11 +47,13 @@ RSpec.describe TelegramSupportBot do
 
       TelegramSupportBot.message_map[123] = { chat_id: 42, message_id: 88 }
       TelegramSupportBot.reverse_message_map['42:88'] = 123
+      TelegramSupportBot.start_forwarded_users[42] = true
 
       TelegramSupportBot.reset_state_store!
 
       expect(TelegramSupportBot.message_map[123]).to eq(chat_id: 42, message_id: 88)
       expect(TelegramSupportBot.reverse_message_map['42:88']).to eq(123)
+      expect(TelegramSupportBot.start_forwarded_users[42]).to eq(true)
     end
 
     it 'isolates redis namespace by bot key for non-default bots' do
@@ -69,11 +71,17 @@ RSpec.describe TelegramSupportBot do
 
       TelegramSupportBot.message_map[100] = { chat_id: 1, message_id: 10 }
       TelegramSupportBot.message_map(:partner)[100] = { chat_id: 2, message_id: 20 }
+      TelegramSupportBot.start_forwarded_users[1] = true
+      TelegramSupportBot.start_forwarded_users(:partner)[2] = true
 
       expect(TelegramSupportBot.message_map[100]).to eq(chat_id: 1, message_id: 10)
       expect(TelegramSupportBot.message_map(:partner)[100]).to eq(chat_id: 2, message_id: 20)
+      expect(TelegramSupportBot.start_forwarded_users[1]).to eq(true)
+      expect(TelegramSupportBot.start_forwarded_users(:partner)[2]).to eq(true)
       expect(fake_redis.keys).to include('telegram_support_bot:message_map:100')
       expect(fake_redis.keys).to include('telegram_support_bot:partner:message_map:100')
+      expect(fake_redis.keys).to include('telegram_support_bot:start_forwarded_users:1')
+      expect(fake_redis.keys).to include('telegram_support_bot:partner:start_forwarded_users:2')
     end
   end
 end

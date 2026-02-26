@@ -50,6 +50,8 @@ TelegramSupportBot.configure do |config|
   config.non_command_message_response = 'I only respond to commands. Please use /start.'
   # Optional: ask users to share their phone once for account lookup.
   config.request_contact_on_start = true
+  # Optional: forward the user's first /start message to support chat.
+  config.forward_start_to_support = false
   # Optional: block forwarding until contact is shared.
   config.require_contact_for_support = false
   # Optional callback to persist/lookup user profile in your app.
@@ -222,6 +224,7 @@ Behavior:
 - Triggered only for user-chat commands that start with `/` and are not `/start`.
 - Receives `command` (normalized to lowercase), `bot_username` (if present), and `args` (text after command).
 - Return `true` to stop forwarding to support chat; return `false`/`nil` to keep default forwarding.
+- `/start` can be forwarded once per user to support chat when `forward_start_to_support = true`.
 
 ## State Storage (Single Pod vs Multi-Pod)
 

@@ -11,6 +11,7 @@ module TelegramSupportBot
         @reverse_message_map = {}
         @reaction_count_state = {}
         @user_profiles = {}
+        @start_forwarded_users = {}
       end
 
       def message_map
@@ -46,6 +47,15 @@ module TelegramSupportBot
           set_proc:   ->(key, value) { set_user_profile(key, value) },
           clear_proc: -> { clear_user_profiles },
           size_proc:  -> { user_profiles_size }
+        )
+      end
+
+      def start_forwarded_users
+        @start_forwarded_users_proxy ||= StateStore::MapProxy.new(
+          get_proc:   ->(key) { get_start_forwarded_user(key) },
+          set_proc:   ->(key, value) { set_start_forwarded_user(key, value) },
+          clear_proc: -> { clear_start_forwarded_users },
+          size_proc:  -> { start_forwarded_users_size }
         )
       end
 
@@ -111,6 +121,22 @@ module TelegramSupportBot
 
       def user_profiles_size
         synchronize { @user_profiles.size }
+      end
+
+      def get_start_forwarded_user(key)
+        synchronize { @start_forwarded_users[normalize_key(key)] }
+      end
+
+      def set_start_forwarded_user(key, value)
+        synchronize { @start_forwarded_users[normalize_key(key)] = value }
+      end
+
+      def clear_start_forwarded_users
+        synchronize { @start_forwarded_users.clear }
+      end
+
+      def start_forwarded_users_size
+        synchronize { @start_forwarded_users.size }
       end
 
       private
