@@ -296,7 +296,7 @@ RSpec.describe TelegramSupportBot do
 
       TelegramSupportBot.process_update(update)
 
-      expect(TelegramSupportBot.start_forwarded_users[user_chat_id]).to eq(true)
+      expect(TelegramSupportBot.start_forwarded_users[user_chat_id]).to include(present: true)
       expect(TelegramSupportBot.message_map[556]).to eq(chat_id: user_chat_id, message_id: 15)
     end
 

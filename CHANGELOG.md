@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.1.14] - 2026-02-26
+## [0.1.15] - 2026-02-26
 
 ### Added
 - Optional `forward_start_to_support` configuration to forward the first user `/start`
@@ -15,6 +15,8 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Initial `/start` forwarding is now fail-safe: errors in forwarding/persisting first-message
   marker no longer crash update processing and block subsequent updates.
+- Redis-backed marker storage for update/start dedup now writes JSON objects (not scalar booleans),
+  fixing `JSON::GeneratorError: only generation of JSON objects or arrays allowed` on stricter runtimes.
 
 ## [0.1.12] - 2026-02-26
 

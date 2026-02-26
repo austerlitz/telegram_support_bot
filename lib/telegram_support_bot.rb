@@ -526,25 +526,41 @@ module TelegramSupportBot
       return unless should_forward_start_to_support?(chat_id)
       return unless forward_message_to_support_chat(message, chat_id: chat_id)
 
-      start_forwarded_users[chat_id] = true
+      start_forwarded_users[chat_id] = start_forwarded_marker_value
     rescue StandardError => error
       warn_start_forwarding_failure(chat_id: chat_id, message_id: message['message_id'], error: error)
     end
 
     def start_forwarded_to_support?(chat_id)
-      !start_forwarded_users[chat_id].nil?
+      marker_present?(start_forwarded_users[chat_id])
     end
 
     def duplicate_update?(update_id)
       return false if update_id.nil?
 
-      !processed_updates[update_id].nil?
+      marker_present?(processed_updates[update_id])
     end
 
     def mark_update_as_processed(update_id)
       return if update_id.nil?
 
-      processed_updates[update_id] = true
+      processed_updates[update_id] = processed_update_marker_value
+    end
+
+    def marker_present?(value)
+      return false if value.nil?
+      return value if value == true || value == false
+      return value.fetch(:present, value['present']) if value.is_a?(Hash)
+
+      true
+    end
+
+    def start_forwarded_marker_value
+      { present: true }
+    end
+
+    def processed_update_marker_value
+      { present: true }
     end
 
     def warn_start_forwarding_failure(chat_id:, message_id:, error:)
