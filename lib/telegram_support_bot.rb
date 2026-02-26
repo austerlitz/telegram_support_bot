@@ -366,11 +366,18 @@ module TelegramSupportBot
     end
 
     def handle_my_chat_member_update(update)
-      # Check if the bot has been added to the chat
-      if update['new_chat_member']
-        chat_id = update['chat']['id']
-        send_welcome_message(chat_id: chat_id)
-      end
+      new_status = update.dig('new_chat_member', 'status')
+      old_status = update.dig('old_chat_member', 'status')
+      return unless %w[member administrator].include?(new_status)
+      return if %w[member administrator].include?(old_status)
+
+      chat = update['chat'] || {}
+      return if chat['type'] == 'private'
+
+      chat_id = chat['id']
+      return if chat_id.nil?
+
+      send_welcome_message(chat_id: chat_id)
     end
 
     def process_message_reaction(message_reaction)

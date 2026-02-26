@@ -67,4 +67,38 @@ RSpec.describe TelegramSupportBot do
       TelegramSupportBot.process_update(update)
     end
   end
+
+  describe 'my_chat_member onboarding behavior' do
+    it 'sends support chat id when bot is added to a non-private chat' do
+      update = {
+        'my_chat_member' => {
+          'chat' => { 'id' => support_chat_id, 'type' => 'group' },
+          'old_chat_member' => { 'status' => 'left' },
+          'new_chat_member' => { 'status' => 'member' }
+        }
+      }
+
+      expect(adapter).to receive(:send_message).with(
+        chat_id: support_chat_id,
+        text: a_string_including("<code>#{support_chat_id}</code>"),
+        parse_mode: 'HTML'
+      )
+
+      TelegramSupportBot.process_update(update)
+    end
+
+    it 'does not send support chat id when bot is added in private chat' do
+      update = {
+        'my_chat_member' => {
+          'chat' => { 'id' => 281_702_163, 'type' => 'private' },
+          'old_chat_member' => { 'status' => 'kicked' },
+          'new_chat_member' => { 'status' => 'member' }
+        }
+      }
+
+      expect(adapter).not_to receive(:send_message)
+
+      TelegramSupportBot.process_update(update)
+    end
+  end
 end

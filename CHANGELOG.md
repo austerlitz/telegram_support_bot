@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-02-26
+
+### Fixed
+- `my_chat_member` onboarding message with support chat ID is no longer sent for private chats.
+- Support-chat onboarding message is now emitted only when the bot is newly added to a non-private chat.
+
 ## [0.1.11] - 2026-02-25
 
 ### Added
