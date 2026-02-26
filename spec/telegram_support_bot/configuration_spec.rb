@@ -69,6 +69,7 @@ RSpec.describe TelegramSupportBot::Configuration do
       config.mapping_ttl_seconds = 100
       config.reaction_count_ttl_seconds = 50
       config.user_profile_ttl_seconds = 500
+      config.processed_update_ttl_seconds = 200
     end
 
     expect(TelegramSupportBot.configuration.state_store).to eq(:redis)
@@ -76,5 +77,6 @@ RSpec.describe TelegramSupportBot::Configuration do
     expect(TelegramSupportBot.configuration.mapping_ttl_seconds).to eq(100)
     expect(TelegramSupportBot.configuration.reaction_count_ttl_seconds).to eq(50)
     expect(TelegramSupportBot.configuration.user_profile_ttl_seconds).to eq(500)
+    expect(TelegramSupportBot.configuration.processed_update_ttl_seconds).to eq(200)
   end
 end

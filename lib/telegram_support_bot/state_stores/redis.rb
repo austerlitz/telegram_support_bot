@@ -8,7 +8,8 @@ module TelegramSupportBot
       DEFAULT_NAMESPACE = 'telegram_support_bot'
 
       def initialize(url: nil, redis: nil, namespace: DEFAULT_NAMESPACE,
-                     mapping_ttl_seconds: nil, reaction_count_ttl_seconds: nil, user_profile_ttl_seconds: nil, **_options)
+                     mapping_ttl_seconds: nil, reaction_count_ttl_seconds: nil, user_profile_ttl_seconds: nil,
+                     processed_update_ttl_seconds: nil, **_options)
         @redis = redis || begin
           require 'redis'
           ::Redis.new(url: url)
@@ -19,6 +20,7 @@ module TelegramSupportBot
         @mapping_ttl_seconds = mapping_ttl_seconds
         @reaction_count_ttl_seconds = reaction_count_ttl_seconds
         @user_profile_ttl_seconds = user_profile_ttl_seconds
+        @processed_update_ttl_seconds = processed_update_ttl_seconds
       end
 
       def message_map
@@ -63,6 +65,15 @@ module TelegramSupportBot
           set_proc:   ->(key, value) { set_start_forwarded_user(key, value) },
           clear_proc: -> { clear_start_forwarded_users },
           size_proc:  -> { start_forwarded_users_size }
+        )
+      end
+
+      def processed_updates
+        @processed_updates_proxy ||= StateStore::MapProxy.new(
+          get_proc:   ->(key) { get_processed_update(key) },
+          set_proc:   ->(key, value) { set_processed_update(key, value) },
+          clear_proc: -> { clear_processed_updates },
+          size_proc:  -> { processed_updates_size }
         )
       end
 
@@ -147,6 +158,22 @@ module TelegramSupportBot
 
       def start_forwarded_users_size
         count_by_prefix(prefix(:start_forwarded_users))
+      end
+
+      def get_processed_update(key)
+        parse_json(@redis.get(map_key(:processed_updates, key)))
+      end
+
+      def set_processed_update(key, value)
+        write_json(map_key(:processed_updates, key), value, @processed_update_ttl_seconds)
+      end
+
+      def clear_processed_updates
+        delete_by_prefix(prefix(:processed_updates))
+      end
+
+      def processed_updates_size
+        count_by_prefix(prefix(:processed_updates))
       end
 
       private

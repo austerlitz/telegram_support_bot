@@ -29,6 +29,7 @@ RSpec.describe TelegramSupportBot do
     TelegramSupportBot.reaction_count_state.clear
     TelegramSupportBot.user_profiles.clear
     TelegramSupportBot.start_forwarded_users.clear
+    TelegramSupportBot.processed_updates.clear
   end
 
   describe 'contact onboarding' do
@@ -326,6 +327,68 @@ RSpec.describe TelegramSupportBot do
 
       TelegramSupportBot.process_update(first_start)
       TelegramSupportBot.process_update(second_start)
+    end
+
+    it 'ignores duplicated update_id for /start' do
+      TelegramSupportBot.configuration.forward_start_to_support = true
+      TelegramSupportBot.configuration.request_contact_on_start = false
+
+      duplicated_update = {
+        'update_id' => 7_070_707,
+        'message' => {
+          'message_id' => 18,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+
+      expect(adapter).to receive(:send_message).once.with(
+        chat_id: user_chat_id,
+        text: TelegramSupportBot.configuration.welcome_message
+      )
+      expect(adapter).to receive(:forward_message).once.with(
+        from_chat_id: user_chat_id,
+        message_id: 18,
+        chat_id: support_chat_id
+      ).and_return({ 'message_id' => 558 })
+
+      TelegramSupportBot.process_update(duplicated_update)
+      TelegramSupportBot.process_update(duplicated_update)
+    end
+
+    it 'does not fail update processing when first /start forwarding raises' do
+      TelegramSupportBot.configuration.forward_start_to_support = true
+      TelegramSupportBot.configuration.request_contact_on_start = false
+
+      start_update = {
+        'message' => {
+          'message_id' => 19,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+      follow_up_update = {
+        'message' => {
+          'message_id' => 20,
+          'chat' => { 'id' => user_chat_id },
+          'text' => 'Need help'
+        }
+      }
+
+      call_count = 0
+      allow(adapter).to receive(:forward_message) do
+        call_count += 1
+        raise StandardError, 'temporary telegram error' if call_count == 1
+
+        { 'message_id' => 559 }
+      end
+
+      allow(TelegramSupportBot).to receive(:warn)
+
+      expect { TelegramSupportBot.process_update(start_update) }.not_to raise_error
+      expect { TelegramSupportBot.process_update(follow_up_update) }.not_to raise_error
+      expect(call_count).to eq(2)
+      expect(TelegramSupportBot).to have_received(:warn).with(a_string_including('Failed to forward initial /start'))
     end
   end
 end

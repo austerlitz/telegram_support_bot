@@ -9,7 +9,7 @@ module TelegramSupportBot
                   :contact_received_message, :contact_invalid_message, :forward_start_to_support, :on_contact_received,
                   :on_user_command,
                   :state_store, :state_store_options, :mapping_ttl_seconds,
-                  :reaction_count_ttl_seconds, :user_profile_ttl_seconds
+                  :reaction_count_ttl_seconds, :user_profile_ttl_seconds, :processed_update_ttl_seconds
 
     def initialize
       @adapter                 = :telegram_bot
@@ -33,6 +33,7 @@ module TelegramSupportBot
       @mapping_ttl_seconds = 30 * 24 * 60 * 60
       @reaction_count_ttl_seconds = 7 * 24 * 60 * 60
       @user_profile_ttl_seconds = nil
+      @processed_update_ttl_seconds = 24 * 60 * 60
     end
   end
 end

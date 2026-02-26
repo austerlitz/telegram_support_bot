@@ -63,6 +63,10 @@ module TelegramSupportBot
       state_store(bot_key).start_forwarded_users
     end
 
+    def processed_updates(bot_key = nil)
+      state_store(bot_key).processed_updates
+    end
+
     def user_profile(chat_id, bot: nil)
       profiles = user_profiles(bot)
       profiles[chat_id] || profiles[chat_id.to_s] || profiles[chat_id.to_i]
@@ -75,6 +79,9 @@ module TelegramSupportBot
 
     def process_update(update, bot: DEFAULT_BOT_KEY)
       with_bot_context(bot) do
+        update_id = update['update_id'] || update[:update_id]
+        return if duplicate_update?(update_id)
+
         # Handle different types of updates
         if update['message']
           # Process standard messages
@@ -91,6 +98,8 @@ module TelegramSupportBot
           # Log or handle unknown update types
           puts "Received an unknown type of update: #{update}"
         end
+
+        mark_update_as_processed(update_id)
       end
     end
 
@@ -518,10 +527,28 @@ module TelegramSupportBot
       return unless forward_message_to_support_chat(message, chat_id: chat_id)
 
       start_forwarded_users[chat_id] = true
+    rescue StandardError => error
+      warn_start_forwarding_failure(chat_id: chat_id, message_id: message['message_id'], error: error)
     end
 
     def start_forwarded_to_support?(chat_id)
       !start_forwarded_users[chat_id].nil?
+    end
+
+    def duplicate_update?(update_id)
+      return false if update_id.nil?
+
+      !processed_updates[update_id].nil?
+    end
+
+    def mark_update_as_processed(update_id)
+      return if update_id.nil?
+
+      processed_updates[update_id] = true
+    end
+
+    def warn_start_forwarding_failure(chat_id:, message_id:, error:)
+      warn "Failed to forward initial /start for chat_id=#{chat_id} message_id=#{message_id}: #{error.class}: #{error.message}"
     end
 
     def contact_known_for_user?(chat_id)

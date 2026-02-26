@@ -54,6 +54,9 @@ TelegramSupportBot.configure do |config|
   config.forward_start_to_support = false
   # Optional: block forwarding until contact is shared.
   config.require_contact_for_support = false
+  # Optional: deduplicate repeated Telegram deliveries by update_id.
+  # Keep > 0 (default: 24h) to avoid repeated /start replies/forwards on retries.
+  config.processed_update_ttl_seconds = 24 * 60 * 60
   # Optional callback to persist/lookup user profile in your app.
   config.on_contact_received = ->(profile) { YourUserMatcher.sync_from_telegram(profile) }
   # Optional callback for user-chat commands other than /start.
@@ -245,6 +248,7 @@ TelegramSupportBot.configure do |config|
   # config.mapping_ttl_seconds = 30 * 24 * 60 * 60
   # config.reaction_count_ttl_seconds = 7 * 24 * 60 * 60
   # config.user_profile_ttl_seconds = nil
+  # config.processed_update_ttl_seconds = 24 * 60 * 60
 end
 ```
 

@@ -37,6 +37,7 @@ module TelegramSupportBot
           mapping_ttl_seconds: configuration.mapping_ttl_seconds,
           reaction_count_ttl_seconds: configuration.reaction_count_ttl_seconds,
           user_profile_ttl_seconds: configuration.user_profile_ttl_seconds,
+          processed_update_ttl_seconds: configuration.processed_update_ttl_seconds,
           **options
         )
       when :redis
@@ -46,6 +47,7 @@ module TelegramSupportBot
           mapping_ttl_seconds: configuration.mapping_ttl_seconds,
           reaction_count_ttl_seconds: configuration.reaction_count_ttl_seconds,
           user_profile_ttl_seconds: configuration.user_profile_ttl_seconds,
+          processed_update_ttl_seconds: configuration.processed_update_ttl_seconds,
           **options
         )
       else
