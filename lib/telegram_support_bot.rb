@@ -532,27 +532,32 @@ module TelegramSupportBot
     end
 
     def start_forwarded_to_support?(chat_id)
-      marker_present?(start_forwarded_users[chat_id])
+      marker_enabled?(start_forwarded_users[chat_id])
     end
 
     def duplicate_update?(update_id)
       return false if update_id.nil?
 
-      marker_present?(processed_updates[update_id])
+      marker_enabled?(processed_updates[update_id])
+    rescue StandardError => error
+      warn_processed_update_marker_read_failure(update_id: update_id, error: error)
+      false
     end
 
     def mark_update_as_processed(update_id)
       return if update_id.nil?
 
       processed_updates[update_id] = processed_update_marker_value
+    rescue StandardError => error
+      warn_processed_update_marker_write_failure(update_id: update_id, error: error)
     end
 
-    def marker_present?(value)
-      return false if value.nil?
-      return value if value == true || value == false
-      return value.fetch(:present, value['present']) if value.is_a?(Hash)
+    def marker_enabled?(value)
+      return true if value == true
+      return false if value.nil? || value == false
+      return marker_enabled?(value[:present] || value['present']) if value.is_a?(Hash)
 
-      true
+      false
     end
 
     def start_forwarded_marker_value
@@ -565,6 +570,14 @@ module TelegramSupportBot
 
     def warn_start_forwarding_failure(chat_id:, message_id:, error:)
       warn "Failed to forward initial /start for chat_id=#{chat_id} message_id=#{message_id}: #{error.class}: #{error.message}"
+    end
+
+    def warn_processed_update_marker_read_failure(update_id:, error:)
+      warn "Failed to read processed update marker for update_id=#{update_id}: #{error.class}: #{error.message}"
+    end
+
+    def warn_processed_update_marker_write_failure(update_id:, error:)
+      warn "Failed to persist processed update marker for update_id=#{update_id}: #{error.class}: #{error.message}"
     end
 
     def contact_known_for_user?(chat_id)

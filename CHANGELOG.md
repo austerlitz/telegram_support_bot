@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-02-26
+
+### Fixed
+- Simplified dedup marker evaluation to strict boolean/hash semantics and removed permissive fallback coercion.
+- Dedup marker read/write failures now fail open (warn and continue) instead of breaking webhook update processing.
+
 ## [0.1.15] - 2026-02-26
 
 ### Added

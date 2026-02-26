@@ -390,5 +390,80 @@ RSpec.describe TelegramSupportBot do
       expect(call_count).to eq(2)
       expect(TelegramSupportBot).to have_received(:warn).with(a_string_including('Failed to forward initial /start'))
     end
+
+    it 'keeps processing when dedup read fails' do
+      TelegramSupportBot.configuration.request_contact_on_start = false
+
+      update = {
+        'update_id' => 88_001,
+        'message' => {
+          'message_id' => 21,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+
+      failing_store = instance_double('processed_updates_store')
+      allow(failing_store).to receive(:[]).and_raise(StandardError, 'redis read timeout')
+      allow(failing_store).to receive(:[]=)
+      allow(TelegramSupportBot).to receive(:processed_updates).and_return(failing_store)
+      allow(TelegramSupportBot).to receive(:warn)
+
+      expect(adapter).to receive(:send_message).with(
+        chat_id: user_chat_id,
+        text: TelegramSupportBot.configuration.welcome_message
+      )
+
+      expect { TelegramSupportBot.process_update(update) }.not_to raise_error
+      expect(TelegramSupportBot).to have_received(:warn).with(a_string_including('Failed to read processed update marker'))
+    end
+
+    it 'keeps processing when dedup write fails' do
+      TelegramSupportBot.configuration.request_contact_on_start = false
+
+      update = {
+        'update_id' => 88_002,
+        'message' => {
+          'message_id' => 22,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+
+      failing_store = instance_double('processed_updates_store')
+      allow(failing_store).to receive(:[]).and_return(nil)
+      allow(failing_store).to receive(:[]=).and_raise(StandardError, 'redis write timeout')
+      allow(TelegramSupportBot).to receive(:processed_updates).and_return(failing_store)
+      allow(TelegramSupportBot).to receive(:warn)
+
+      expect(adapter).to receive(:send_message).with(
+        chat_id: user_chat_id,
+        text: TelegramSupportBot.configuration.welcome_message
+      )
+
+      expect { TelegramSupportBot.process_update(update) }.not_to raise_error
+      expect(TelegramSupportBot).to have_received(:warn).with(a_string_including('Failed to persist processed update marker'))
+    end
+
+    it 'does not treat malformed dedup marker values as already processed' do
+      TelegramSupportBot.configuration.request_contact_on_start = false
+      TelegramSupportBot.processed_updates[99_001] = 'invalid'
+
+      update = {
+        'update_id' => 99_001,
+        'message' => {
+          'message_id' => 23,
+          'chat' => { 'id' => user_chat_id },
+          'text' => '/start'
+        }
+      }
+
+      expect(adapter).to receive(:send_message).with(
+        chat_id: user_chat_id,
+        text: TelegramSupportBot.configuration.welcome_message
+      )
+
+      TelegramSupportBot.process_update(update)
+    end
   end
 end
